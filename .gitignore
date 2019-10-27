@@ -1,0 +1,5 @@
+.ipynb_checkpoints/
+kirin
+*.o
+*.log
+._*.cpp

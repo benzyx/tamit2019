@@ -45,28 +45,29 @@ namespace Common {
   enum UpdateType {
     TRADE, ORDER, CANCEL, REJECT_ORDER, REJECT_CANCEL
   };
+
   enum RejectReason {
     NO_REASON, INVALID_PARAMETERS, INVALID_TRADER_ID, INVALID_TICKER, INVALID_ORDER_ID, RATE_LIMIT_EXCEEDED, OPEN_ORDERS_EXCEEDED, POSITION_LIMIT_EXCEEDED, PNL_LIMIT_EXCEEDED
   };
 
-    struct TradeUpdate{
-      ticker_t ticker;
-      price_t price;
-      quantity_t quantity;
-      order_id_t resting_order_id;
-      order_id_t aggressing_order_id;
-      bool buy; // direction of aggressing order
+  struct TradeUpdate{
+    ticker_t ticker;
+    price_t price;
+    quantity_t quantity;
+    order_id_t resting_order_id;
+    order_id_t aggressing_order_id;
+    bool buy; // direction of aggressing order
 
-      std::string getMsg(){
+    std::string getMsg(){
 
-        std::stringstream ss;
-        ss << "Trade update: ticker=" << (int)ticker;
-        ss << ", quantity="<< quantity  << ", price=" << price
-          << ", resting_order_id=" << resting_order_id <<
-        ", aggressing_order_id=" << aggressing_order_id
-          << ", buy=" << buy;
-        return ss.str();
-      }
+      std::stringstream ss;
+      ss << "Trade update: ticker=" << (int)ticker;
+      ss << ", quantity="<< quantity  << ", price=" << price
+        << ", resting_order_id=" << resting_order_id <<
+      ", aggressing_order_id=" << aggressing_order_id
+        << ", buy=" << buy;
+      return ss.str();
+    }
   };
 
   struct OrderUpdate {

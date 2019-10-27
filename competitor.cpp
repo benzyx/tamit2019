@@ -400,6 +400,11 @@ public:
     }
   }
 
+
+  quantity_t last_large_order_qty = 0;
+  price_t last_large_order_price = 0;
+  bool last_large_order_side = false;
+
   // EDIT THIS METHOD
   void on_order_update(Common::OrderUpdate & update, Bot::Communicator& com){
 
@@ -418,6 +423,7 @@ public:
     price_t spread_size = state.get_spread(0);
     quantity_t bid_quote_size = state.get_quote_size(0, true);
     quantity_t offer_quote_size = state.get_quote_size(0, false);
+    price_t fair_price = weighted_price(best_bid, best_offer, bid_quote_size, offer_quote_size);
 
     state.on_order_update(update);
 
@@ -426,12 +432,80 @@ public:
       return;
     }
 
+
+    constexpr quantity_t position_limit = 1000;
+
+    // Momentum on top of book: Taking side on large orders
+    // Other competitors are literally incapable of placing orders larger than 2000 -- due to their position limits.
+    if (update.quantity > 2000) {
+      // BUY side large order
+      if (update.buy && update.price > best_bid && state.positions[0] < position_limit) {
+        // Make a large IOC order to take best offers.
+        order_id_t order_id = place_order(com, Common::Order{
+          .ticker = 0,
+          .price = best_offer + 0.02,
+          .quantity = position_limit - state.positions[0],
+          .buy = true,
+          .ioc = true,
+          .order_id = 0,
+          .trader_id = trader_id
+        });
+
+        if (INFO) {
+          std::cout << "BIG BUY DETECTED!" << std::endl;
+          std::cout << " -- best_bid         : " << best_bid << std::endl;
+          std::cout << " -- bid_quote_size   : " << bid_quote_size << std::endl;
+          std::cout << " -- best_offer       : " << best_offer << std::endl;
+          std::cout << " -- offer_quote_size : " << offer_quote_size << std::endl;
+          std::cout << " -- spread_size      : " << spread_size << std::endl;
+          std::cout << " -- fair_price       : " << fair_price << std::endl;
+          std::cout << " ----------------------------------------" << std::endl;
+          std::cout << " -- THEIR PRICE      : " << update.price << std::endl;
+          std::cout << " -- THEIR QTY        : " << update.quantity << std::endl;
+          std::cout << " -- OUR QTY          : " << position_limit - state.positions[0] << std::endl;
+          std::cout << " -- ORDER ID         : " << order_id << std::endl;
+          std::cout << " -- THEIR ORDER      : " << update.order_id << std::endl;
+          std::cout << " ----------------------------------------" << std::endl;
+        }
+      }
+
+      if (!update.buy && update.price < best_offer && state.positions[0] > -position_limit) {
+        // Make a large IOC order to take best bids.
+        order_id_t order_id = place_order(com, Common::Order{
+          .ticker = 0,
+          .price = best_bid - 0.02,
+          .quantity = state.positions[0] + position_limit,
+          .buy = false,
+          .ioc = true,
+          .order_id = 0,
+          .trader_id = trader_id
+        });
+
+        if (INFO) {
+          std::cout << "BIG SELL DETECTED!" << std::endl;
+          std::cout << " -- best_bid         : " << best_bid << std::endl;
+          std::cout << " -- bid_quote_size   : " << bid_quote_size << std::endl;
+          std::cout << " -- best_offer       : " << best_offer << std::endl;
+          std::cout << " -- offer_quote_size : " << offer_quote_size << std::endl;
+          std::cout << " -- spread_size      : " << spread_size << std::endl;
+          std::cout << " -- fair_price       : " << fair_price << std::endl;
+          std::cout << " ----------------------------------------" << std::endl;
+          std::cout << " -- THEIR PRICE      : " << update.price << std::endl;
+          std::cout << " -- THEIR QTY        : " << update.quantity << std::endl;
+          std::cout << " -- OUR QTY          : " << position_limit + state.positions[0] << std::endl;
+          std::cout << " -- ORDER ID         : " << order_id << std::endl;
+          std::cout << " -- THEIR ORDER      : " << update.order_id << std::endl;
+          std::cout << " ----------------------------------------" << std::endl;
+        }
+      }
+    }
+
     //// STRATEGY 1:
     //// MARKET TAKING:
     // got the true weighted price.
     // price_t weighted_price = (best_bid * bid_quote_size + best_offer * offer_quote_size) / (bid_quote_size + offer_quote_size);
-    price_t fair_price = weighted_price(best_bid, best_offer, bid_quote_size, offer_quote_size);
-
+    
+    /*
     if (spread_size < 2 && spread_size > 0.2 && update.quantity <= 100){
 
       quantity_t order_size = update.quantity > 100 ? 100 : update.quantity;
@@ -463,8 +537,6 @@ public:
           std::cout << " -- ORDER ID         : " << order_id << std::endl;
           std::cout << " -- THEIR ORDER      : " << update.order_id << std::endl;
           std::cout << " ----------------------------------------" << std::endl;
-
-
         }
       }
       else if (!update.buy && update.price < fair_price - 0.02) {
@@ -496,6 +568,7 @@ public:
         }
       }
     }
+    */
 
     // Timer dump
     int64_t now = time_ns();
